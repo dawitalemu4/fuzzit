@@ -1,46 +1,69 @@
-//! By convention, main.zig is where your main function lives in the case that
-//! you are building an executable. If you are making a library, the convention
-//! is to delete this file and start with root.zig instead.
+const SubCommands = enum {
+    help,
+    status,
+};
+
+const main_parsers = .{
+    .command = clap.parsers.enumeration(SubCommands),
+};
+
+// The parameters for `main`. Parameters for the subcommands are specified further down.
+const main_params = clap.parseParamsComptime(
+    \\-h, --help  Display this help and exit.
+    \\status      Simple list of one-line status summaries
+    \\
+);
+
+fn collect_git_data(gpa: std.heap.SmpAllocator) std.StringHashMap {
+    const GitData = struct { status: []u16, diff: []u16 };
+    var git_data = std.StringHashMap(GitData).init(gpa); // { "path": { status: "...", diff: "..." } }
+    defer git_data.deinit();
+}
 
 pub fn main() !void {
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
+    var gpa_state = std.heap.GeneralPurposeAllocator(.{}){};
+    const gpa = gpa_state.allocator();
+    defer _ = gpa_state.deinit();
 
-    // stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
+    var iter = try std.process.ArgIterator.initWithAllocator(gpa);
+    defer iter.deinit();
+    _ = iter.next();
 
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
+    var diag = clap.Diagnostic{};
+    var res = clap.parseEx(clap.Help, &main_params, main_parsers, &iter, .{
+        .diagnostic = &diag,
+        .allocator = gpa,
 
-    try bw.flush(); // Don't forget to flush!
-}
-
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // Try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
-}
-
-test "use other module" {
-    try std.testing.expectEqual(@as(i32, 150), lib.add(100, 50));
-}
-
-test "fuzz example" {
-    const Context = struct {
-        fn testOne(context: @This(), input: []const u8) anyerror!void {
-            _ = context;
-            // Try passing `--fuzz` to `zig build test` and see if it manages to fail this test case!
-            try std.testing.expect(!std.mem.eql(u8, "canyoufindme", input));
-        }
+        // Terminate the parsing of arguments after parsing the first positional (0 is passed
+        // here because parsed positionals are, like slices and arrays, indexed starting at 0).
+        //
+        // This will terminate the parsing after parsing the subcommand enum and leave `iter`
+        // not fully consumed. It can then be reused to parse the arguments for subcommands.
+        .terminating_positional = 0,
+    }) catch |err| {
+        diag.report(std.io.getStdErr().writer(), err) catch {};
+        return err;
     };
-    try std.testing.fuzz(Context{}, Context.testOne, .{});
+    defer res.deinit();
+
+    if (res.args.help != 0) std.debug.print("--help\n", .{});
+
+    const git_data = collect_git_data(gpa);
+    const command = res.positionals[0] orelse return error.MissingCommand;
+    switch (command) {
+        .h => std.debug.print("--help\n", .{}),
+        .help => std.debug.print("--help\n", .{}),
+        .status => {
+            status.display(git_data);
+        },
+        else => {
+            diff.display(git_data);
+        },
+    }
 }
 
 const std = @import("std");
+const clap = @import("clap");
 
-/// This imports the separate module containing `root.zig`. Take a look in `build.zig` for details.
-const lib = @import("fuzzit_lib");
+const status = @import("status");
+const diff = @import("diff");
