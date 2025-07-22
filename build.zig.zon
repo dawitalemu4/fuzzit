@@ -4,13 +4,17 @@
     .fingerprint = 0xe0eeeaee6c3ac3d7, // Changing this has security and trust implications.
     .minimum_zig_version = "0.14.1",
     .dependencies = .{
-        .clap = .{
-            .url = "git+https://github.com/Hejsil/zig-clap#cc5c6a5d71a317ed4b0ad776842d1d0655f72d0a",
-            .hash = "clap-0.10.0-oBajB7jkAQAZ4cKLlzkeV9mDu2yGZvtN2QuOyfAfjBij",
+        .yazap = .{
+            .url = "git+https://github.com/prajwalch/yazap#fdb6a88e30bd7d27d548dd9f9809df8429f9f87b",
+            .hash = "yazap-0.6.3-Z1t-EhflAQCN128_OyQRyDcnbbVFPngvhwonpAHTq36h",
         },
         .prettyzig = .{
             .url = "git+https://github.com/couchpotato007/prettyzig#61a6f7e80d7b76992b820ec809074a4a3279ad00",
             .hash = "prettyzig-0.0.0-2dgyeog0AACwIWbBIwVUAjJc9j4ivTJaBjbBF24I0FN0",
+        },
+        .spoon = .{
+            .url = "git+https://git.sr.ht/~leon_plickat/zig-spoon#c75557cfec63659807f4cce2b03345ab6671b33e",
+            .hash = "spoon-0.1.0-jYZhgyOkAgAcVmy4HaMNShXHc18g0QUAJ_zTZNI6xvWK",
         },
     },
     .paths = .{
