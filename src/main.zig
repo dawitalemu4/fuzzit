@@ -1,69 +1,45 @@
-const SubCommands = enum {
-    help,
-    status,
-};
+pub const GitData = struct { status: []u8, diff: []u16 };
 
-const main_parsers = .{
-    .command = clap.parsers.enumeration(SubCommands),
-};
-
-// The parameters for `main`. Parameters for the subcommands are specified further down.
-const main_params = clap.parseParamsComptime(
-    \\-h, --help  Display this help and exit.
-    \\status      Simple list of one-line status summaries
-    \\
-);
-
-fn collect_git_data(gpa: std.heap.SmpAllocator) std.StringHashMap {
-    const GitData = struct { status: []u16, diff: []u16 };
-    var git_data = std.StringHashMap(GitData).init(gpa); // { "path": { status: "...", diff: "..." } }
-    defer git_data.deinit();
+fn collect_git_data(git_data: std.AutoHashMap([]const u8, GitData)) std.AutoHashMap([]const u8, GitData) {
+    return git_data;
 }
 
 pub fn main() !void {
-    var gpa_state = std.heap.GeneralPurposeAllocator(.{}){};
-    const gpa = gpa_state.allocator();
-    defer _ = gpa_state.deinit();
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    defer _ = gpa.deinit();
 
-    var iter = try std.process.ArgIterator.initWithAllocator(gpa);
-    defer iter.deinit();
-    _ = iter.next();
+    var app = yazap.App.init(allocator, "fuzzit", "Fuzzy nested git repo finder with status and diff previews");
+    defer app.deinit();
 
-    var diag = clap.Diagnostic{};
-    var res = clap.parseEx(clap.Help, &main_params, main_parsers, &iter, .{
-        .diagnostic = &diag,
-        .allocator = gpa,
+    var fuzzit = app.rootCommand();
+    try fuzzit.addSubcommand(app.createCommand("status", "Simple list of one-line status summaries"));
 
-        // Terminate the parsing of arguments after parsing the first positional (0 is passed
-        // here because parsed positionals are, like slices and arrays, indexed starting at 0).
-        //
-        // This will terminate the parsing after parsing the subcommand enum and leave `iter`
-        // not fully consumed. It can then be reused to parse the arguments for subcommands.
-        .terminating_positional = 0,
-    }) catch |err| {
-        diag.report(std.io.getStdErr().writer(), err) catch {};
-        return err;
-    };
-    defer res.deinit();
+    // check for home dir in sys env, or prompt to save home path as env FUZZIT_PATH
+    // check if 'PATH="" fuzzit'
 
-    if (res.args.help != 0) std.debug.print("--help\n", .{});
+    var git_data_map = std.AutoHashMap([]const u8, GitData).init(allocator); // { "path_to_repo": { status: "...", diff: "..." } }
+    const git_data = collect_git_data(git_data_map);
+    defer git_data_map.deinit();
 
-    const git_data = collect_git_data(gpa);
-    const command = res.positionals[0] orelse return error.MissingCommand;
-    switch (command) {
-        .h => std.debug.print("--help\n", .{}),
-        .help => std.debug.print("--help\n", .{}),
-        .status => {
-            status.display(git_data);
-        },
-        else => {
-            diff.display(git_data);
-        },
+    const input = try app.parseProcess();
+    if (input.subcommandMatches("help")) |_| {
+        try app.displayHelp();
+    } else if (input.containsArg("help")) {
+        try app.displayHelp();
+    } else if (input.containsArg("h")) {
+        try app.displayHelp();
+    }
+
+    if (input.subcommandMatches("status")) |_| {
+        try status.display(git_data);
+    } else {
+        try diff.display();
     }
 }
 
 const std = @import("std");
-const clap = @import("clap");
+const yazap = @import("yazap");
 
-const status = @import("status");
-const diff = @import("diff");
+const status = @import("status.zig");
+const diff = @import("diff.zig");

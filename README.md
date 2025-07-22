@@ -5,7 +5,7 @@ Fuzzy nested git repo finder with status and diff previews
 
 ## Usage
 
-Rich diff and status list:
+Rich diff previews and status list:
 ```sh
 fuzzit
 ```
@@ -16,7 +16,7 @@ gif
 
 Simple list of one-line status summaries:
 ```sh
-fuzzit <-s, --status>
+fuzzit status
 ```
 
 <!---
