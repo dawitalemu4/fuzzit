@@ -27,7 +27,7 @@ Filter output by specifying starting path:
 ```sh
 # Starting path will be requested and saved on first use
 # Relative paths (ex: PATH="./big-folder-with-projects" from ~/dev) will work
-PATH="~/dev/big-folder-with-projects" fuzzit
+FUZZIT_PATH="~/dev/big-folder-with-projects" fuzzit
 ```
 
 

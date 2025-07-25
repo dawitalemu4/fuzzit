@@ -1,9 +1,3 @@
-pub const GitData = struct { status: []u8, diff: []u16 };
-
-fn collect_git_data(git_data: std.AutoHashMap([]const u8, GitData)) std.AutoHashMap([]const u8, GitData) {
-    return git_data;
-}
-
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
@@ -15,12 +9,11 @@ pub fn main() !void {
     var fuzzit = app.rootCommand();
     try fuzzit.addSubcommand(app.createCommand("status", "Simple list of one-line status summaries"));
 
-    // check for home dir in sys env, or prompt to save home path as env FUZZIT_PATH
-    // check if 'PATH="" fuzzit'
-
     var git_data_map = std.AutoHashMap([]const u8, GitData).init(allocator); // { "path_to_repo": { status: "...", diff: "..." } }
-    const git_data = collect_git_data(git_data_map);
     defer git_data_map.deinit();
+
+    const path = utils.resolve_path(allocator);
+    const git_data = utils.collect_git_data(allocator, path, git_data_map);
 
     const input = try app.parseProcess();
     if (input.subcommandMatches("help")) |_| {
@@ -34,7 +27,7 @@ pub fn main() !void {
     if (input.subcommandMatches("status")) |_| {
         try status.display(git_data);
     } else {
-        try diff.display();
+        try diff.display(path);
     }
 }
 
@@ -43,3 +36,6 @@ const yazap = @import("yazap");
 
 const status = @import("status.zig");
 const diff = @import("diff.zig");
+const utils = @import("utils.zig");
+
+pub const GitData = @import("utils.zig").GitData;
