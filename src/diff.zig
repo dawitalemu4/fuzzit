@@ -1,4 +1,5 @@
 pub fn display(
+    // path: []const u8,
     // git_data: std.AutoHashMap([]const u8, GitData)
 ) !void {}
 
