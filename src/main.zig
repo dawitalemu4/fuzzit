@@ -9,11 +9,8 @@ pub fn main() !void {
     var fuzzit = app.rootCommand();
     try fuzzit.addSubcommand(app.createCommand("status", "Simple list of one-line status summaries"));
 
-    var git_data_map = std.AutoHashMap([]const u8, GitData).init(allocator); // { "path_to_repo": { status: "...", diff: "..." } }
-    defer git_data_map.deinit();
-
-    const path = utils.resolve_path(allocator);
-    const git_data = utils.collect_git_data(allocator, path, git_data_map);
+    const base_path = utils.resolve_base_path(allocator);
+    const git_data = utils.collect_git_data(allocator, base_path);
 
     const input = try app.parseProcess();
     if (input.subcommandMatches("help")) |_| {
@@ -27,7 +24,7 @@ pub fn main() !void {
     if (input.subcommandMatches("status")) |_| {
         try status.display(git_data);
     } else {
-        try diff.display(path);
+        try diff.display(git_data, base_path);
     }
 }
 
