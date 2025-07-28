@@ -3,14 +3,14 @@ const yellow = prettyzig.RGB.init(241, 250, 140); // #f1fa8c
 const orange = prettyzig.RGB.init(255, 184, 108); // #ffb86c
 const red = prettyzig.RGB.init(255, 85, 85); // #ff5555
 
-pub fn display(git_data: std.AutoHashMap([]const u8, GitData)) !void {
+pub fn display(git_data: std.StringHashMap(GitData)) !void {
     const stdout = std.io.getStdOut().writer();
     var git_data_iter = git_data.iterator();
 
     while (git_data_iter.next()) |data| {
         const status = data.value_ptr.status;
         var path_buffer: [255]u8 = undefined;
-        const path = try std.fmt.bufPrint(&path_buffer, "{s} .. ", .{data.key_ptr.*});
+        const path = try std.fmt.bufPrint(&path_buffer, "{s} .. ", .{data.key_ptr});
         try prettyzig.print(stdout, path, .{});
 
         if (contains(status, "nothing to commit")) {

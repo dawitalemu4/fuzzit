@@ -1,7 +1,7 @@
-pub fn display(
-    // path: []const u8,
-    // git_data: std.AutoHashMap([]const u8, GitData)
-) !void {}
+pub fn display(git_data: std.StringHashMap(GitData), base_path: []const u8) !void {
+    _ = base_path;
+    _ = git_data;
+}
 
 const std = @import("std");
 const spoon = @import("spoon");
