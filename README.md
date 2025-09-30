@@ -34,13 +34,7 @@ FUZZIT_PATH="~/dev/big-folder-with-projects" fuzzit
 ## Installation
 
 ```sh
-brew install fuzzit
-```
-
-or
-
-```sh
-curl -L https://github.com/dawitalemu4/fuzzit/releases/download/v1.0.0/fuzzit_1.0.0_windows_x86_64.zip
+cargo install fuzzit
 ```
 
 
