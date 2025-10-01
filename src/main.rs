@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::{Command::subcommand, Parser, arg, command};
+use clap::Parser;
 use color_eyre::eyre::Result;
 use utils::collect_git_data;
 
@@ -16,10 +16,12 @@ pub mod utils;
 )]
 struct Args {
     /// Simple list of one-line git status summaries
-    #[command(subcommand, default_value = "false")]
+    #[arg(short, long, default_value = "false")]
     status: bool,
+    /// Path to start searching from, takes priority over FUZZIT_BASE_PATH
     #[arg(env)]
     fuzzit_path: Option<PathBuf>,
+    /// Your default base path to start searching from, please add to your environment (ex: ~/.zshrc)
     #[arg(env)]
     fuzzit_base_path: Option<PathBuf>,
 }
@@ -31,12 +33,14 @@ async fn main() -> Result<()> {
 
     let (base_path, git_data) = collect_git_data(args.fuzzit_path, args.fuzzit_base_path).await?;
 
-    if args.status {
-        status::display(base_path, git_data).await?;
-    } else {
-        let terminal = ratatui::init();
-        diff::App::new(base_path, git_data).run(terminal);
-    }
+    // if args.status {
+    status::display(base_path, git_data).await?;
+    // } else {
+    //     let mut terminal = ratatui::init();
+    //     let res = diff::App::new(base_path, git_data).run(&mut terminal);
+    //     ratatui::restore();
+    //     res?
+    // }
 
     Ok(())
 }
