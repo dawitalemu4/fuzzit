@@ -7,7 +7,7 @@ use color_eyre::{
 
 use crate::utils::GitData;
 
-pub async fn display(base_path: PathBuf, git_data: &mut HashMap<PathBuf, GitData>) -> Result<()> {
+pub async fn display(base_path: PathBuf, git_data: HashMap<PathBuf, GitData>) -> Result<()> {
     if let Some(base_path) = base_path.to_str() {
         println!("Iterating git repos from {base_path}\n");
     }
@@ -19,8 +19,8 @@ pub async fn display(base_path: PathBuf, git_data: &mut HashMap<PathBuf, GitData
             } else if git_data.status.contains("no changes added to commit") {
                 println!(
                     "{repo_path} .. {} (changes not added)",
-                    "DIRTY".fg_rgb::<255, 184, 108>()
-                ); // orange
+                    "DIRTY".fg_rgb::<255, 184, 108>() // orange
+                );
             } else if git_data.status.contains("Changes to be committed") {
                 println!(
                     "{repo_path} .. {} (changes added, not committed)",
@@ -36,7 +36,7 @@ pub async fn display(base_path: PathBuf, git_data: &mut HashMap<PathBuf, GitData
             }
         } else {
             Err(eyre!(
-                "Make sure to add FUZZIT_BASE_PATH to your enviorinment (ex: ~/.zshrc) or use FUZZIT_PATH before command"
+                "Make sure to add FUZZIT_BASE_PATH to your environment (ex: ~/.zshrc) or use FUZZIT_PATH before command"
             ))?
         }
     }
