@@ -13,7 +13,7 @@
 //     },
 // };
 
-// use crate::utils::GitData;
+// use crate::git_data::GitData;
 
 // const ITEM_HEIGHT: usize = 4;
 // const INFO_TEXT: [&str; 1] =

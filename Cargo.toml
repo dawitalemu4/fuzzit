@@ -2,6 +2,11 @@
 name = "fuzzit"
 version = "0.1.0"
 edition = "2024"
+description = "Fuzzy nested git repo finder with status and diff previews"
+repository = "https://github.com/dawitalemu4/fuzzit"
+readme = "README.md"
+keywords = ["fuzzy", "git"]
+categories = ["Virtualization"]
 
 [lints.rust]
 unsafe_code = "deny"
@@ -37,7 +42,6 @@ match_same_arms = "warn"
 no_effect_underscore_binding = "warn"
 panic = "warn"
 print_stderr = "warn"
-print_stdout = "warn"
 same_name_method = "warn"
 single_char_lifetime_names = "warn"
 string_to_string = "warn"
@@ -53,10 +57,3 @@ clap = { version = "4.5.48", features = ["env", "derive"] }
 color-eyre = "0.6.5"
 ratatui = "0.29.0"
 rayon = "1.11.0"
-tokio = { version = "1.47.1", features = [
-    "macros", 
-    "rt-multi-thread", 
-    "fs", 
-    "process",
-    "sync"
-] }

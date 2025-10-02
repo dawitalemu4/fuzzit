@@ -1,43 +1,58 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::path::PathBuf;
 
-use color_eyre::{
-    eyre::{Result, eyre},
-    owo_colors::OwoColorize,
-};
+use color_eyre::{eyre::Result, owo_colors::OwoColorize};
 
-use crate::utils::GitData;
+use crate::git_data::GitData;
 
-pub async fn display(base_path: PathBuf, git_data: HashMap<PathBuf, GitData>) -> Result<()> {
-    if let Some(base_path) = base_path.to_str() {
-        println!("Iterating git repos from {base_path}\n");
+pub fn display(
+    base_path: PathBuf,
+    disable_ascii_art: bool,
+    git_data: Vec<(String, GitData)>,
+) -> Result<()> {
+    if !disable_ascii_art {
+        let ascii_art = r#"
+ ________ ___  ___  ________  ________  ___  _________   
+|\  _____\\  \|\  \|\_____  \|\_____  \|\  \|\___   ___\ 
+\ \  \__/\ \  \\\  \\|___/  /|\|___/  /\ \  \|___ \  \_| 
+ \ \   __\\ \  \\\  \   /  / /    /  / /\ \  \   \ \  \  
+  \ \  \_| \ \  \\\  \ /  /_/__  /  /_/__\ \  \   \ \  \ 
+   \ \__\   \ \_______\\________\\________\ \__\   \ \__\
+    \|__|    \|_______|\|_______|\|_______|\|__|    \|__|
+"#;
+
+        println!("{ascii_art}");
     }
 
-    for (path, git_data) in git_data {
-        if let Some(repo_path) = path.to_str() {
-            if git_data.status.contains("nothing to commit") {
-                println!("{repo_path} .. {}", "CLEAN".green().italic());
-            } else if git_data.status.contains("no changes added to commit") {
-                println!(
-                    "{repo_path} .. {} (changes not added)",
-                    "DIRTY".fg_rgb::<255, 184, 108>() // orange
-                );
-            } else if git_data.status.contains("Changes to be committed") {
-                println!(
-                    "{repo_path} .. {} (changes added, not committed)",
-                    "DIRTY".red()
-                );
-            } else if git_data.status.contains("Your branch is ahead of") {
-                println!(
-                    "{repo_path} .. {} (changes committed, not pushed)",
-                    "DIRTY".red().bold()
-                );
-            } else {
-                println!("{repo_path} .. {}", "UNKNOWN".yellow());
-            }
+    if git_data.is_empty() {
+        println!("Could not find any git repos from provided path");
+        println!(
+            "Make sure to add FUZZIT_BASE_PATH to your environment (ex: ~/.zshrc) or use FUZZIT_PATH before command"
+        );
+
+        return Ok(());
+    }
+
+    println!("Iterating git repos from {}\n", base_path.display());
+    for (repo_path, git_data) in git_data {
+        if git_data.status.contains("nothing to commit") {
+            println!("{repo_path} .. {}", "CLEAN".green().italic());
+        } else if git_data.status.contains("no changes added to commit") {
+            println!(
+                "{repo_path} .. {} (changes not added)",
+                "DIRTY".fg_rgb::<255, 184, 108>() // orange
+            );
+        } else if git_data.status.contains("Changes to be committed") {
+            println!(
+                "{repo_path} .. {} (changes added, not committed)",
+                "DIRTY".red()
+            );
+        } else if git_data.status.contains("Your branch is ahead of") {
+            println!(
+                "{repo_path} .. {} (changes committed, not pushed)",
+                "DIRTY".red().bold()
+            );
         } else {
-            Err(eyre!(
-                "Make sure to add FUZZIT_BASE_PATH to your environment (ex: ~/.zshrc) or use FUZZIT_PATH before command"
-            ))?
+            println!("{repo_path} .. {}", "UNKNOWN".yellow());
         }
     }
 
