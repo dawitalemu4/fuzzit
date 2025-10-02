@@ -16,7 +16,7 @@ gif
 
 Simple list of one-line status summaries:
 ```sh
-fuzzit status
+fuzzit --status
 ```
 
 <!---
@@ -25,9 +25,8 @@ gif
 
 Filter output by specifying starting path:
 ```sh
-# Starting path will be requested and saved on first use
-# Relative paths (ex: PATH="./big-folder-with-projects" from ~/dev) will work
-FUZZIT_PATH="~/dev/big-folder-with-projects" fuzzit
+# Relative paths (ex: FUZZIT_PATH="./folder-with-many-projects" from ~/dev) will work
+FUZZIT_PATH="~/dev/folder-with-many-projects" fuzzit
 ```
 
 
@@ -36,6 +35,8 @@ FUZZIT_PATH="~/dev/big-folder-with-projects" fuzzit
 ```sh
 cargo install fuzzit
 ```
+
+Add your dev folder as `FUZZIT_BASE_PATH` to your environment (ex: `FUZZIT_BASE_PATH="~/dev"` in ~/.zshrc)
 
 
 ## License
