@@ -32,15 +32,10 @@ pub fn display(
 
     println!("Iterating git repos from {base_path}\n");
     for (repo_path, git_data) in git_data {
-        if git_data.status.contains("nothing to commit") {
-            println!("{repo_path} .. {}", "CLEAN".green().italic());
-        } else if git_data.status.contains("Your branch is ahead of")
-            || git_data.status.contains("diverged")
+        if git_data.status.contains("nothing to commit")
+            && !git_data.status.contains("branch is ahead")
         {
-            println!(
-                "{repo_path} .. {}",
-                "DIRTY (changes committed, not pushed)".red().bold()
-            );
+            println!("{repo_path} .. {}", "CLEAN".green().italic());
         } else if git_data.status.contains("no changes added to commit") {
             println!(
                 "{repo_path} .. {}",
@@ -50,6 +45,13 @@ pub fn display(
             println!(
                 "{repo_path} .. {}",
                 "DIRTY (changes added, not committed)".red()
+            );
+        } else if git_data.status.contains("branch is ahead")
+            || git_data.status.contains("diverged")
+        {
+            println!(
+                "{repo_path} .. {}",
+                "DIRTY (changes committed, not pushed)".red().bold()
             );
         } else {
             println!("{repo_path} .. {}", "UNKNOWN".yellow());

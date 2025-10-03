@@ -21,12 +21,6 @@ const KEYBINDS: [&str; 2] = [
     "g/G to go top/bottom | (Esc/q) quit",
 ];
 
-#[derive(Debug, PartialEq)]
-enum FocusedWindow {
-    PathList,
-    DiffPreview,
-}
-
 #[derive(Debug)]
 pub struct App {
     state: ListState,
@@ -35,6 +29,12 @@ pub struct App {
     focused_window: FocusedWindow,
     base_path: String,
     items: Vec<(String, GitData)>,
+}
+
+#[derive(Debug, PartialEq)]
+enum FocusedWindow {
+    PathList,
+    DiffPreview,
 }
 
 impl App {
@@ -162,27 +162,13 @@ impl App {
             .items
             .iter()
             .map(|(repo_path, git_data)| {
-                let stripped_repo_path = {
-                    let removed_base_path = repo_path.replace(&self.base_path, "");
-                    if cfg!(windows) {
-                        removed_base_path.replacen(r#"\"#, "", 1)
-                    } else {
-                        removed_base_path.replacen("/", "", 1)
-                    }
-                };
-
-                let mut text = Text::raw(format!("{stripped_repo_path} .. "));
-                if git_data.status.contains("nothing to commit") {
+                let mut text = Text::raw(format!("{repo_path} .. "));
+                if git_data.status.contains("nothing to commit")
+                    && !git_data.status.contains("branch is ahead")
+                {
                     text.push_span(Span::styled(
                         "CLEAN",
                         Style::new().fg(Color::Green).add_modifier(Modifier::ITALIC),
-                    ))
-                } else if git_data.status.contains("Your branch is ahead of")
-                    || git_data.status.contains("diverged")
-                {
-                    text.push_span(Span::styled(
-                            "DIRTY (changes committed, not pushed)",
-                            Style::new().fg(Color::Red).add_modifier(Modifier::BOLD),
                     ))
                 } else if git_data.status.contains("no changes added to commit") {
                     text.push_span(Span::styled(
@@ -193,6 +179,13 @@ impl App {
                     text.push_span(Span::styled(
                         "DIRTY (changes added, not committed)",
                         Style::new().fg(Color::Red),
+                    ))
+                } else if git_data.status.contains("branch is ahead")
+                    || git_data.status.contains("diverged")
+                {
+                    text.push_span(Span::styled(
+                        "DIRTY (changes committed, not pushed)",
+                        Style::new().fg(Color::Red).add_modifier(Modifier::BOLD),
                     ))
                 } else {
                     text.push_span(Span::styled("UNKNOWN", Style::new().fg(Color::Yellow)))
@@ -214,25 +207,50 @@ impl App {
     }
 
     fn render_diff_window(&mut self, frame: &mut Frame<'_>, area: Rect) {
-        let info = if let Some(i) = self.state.selected() {
+        let diff_str = if let Some(i) = self.state.selected() {
             self.max_diff_scroll = self.items[i].1.diff.lines().count() as u16;
             &self.items[i].1.diff
         } else {
             "Nothing selected..."
         };
 
-        let block = Block::new()
-            .title(Line::raw(" Diff Preview ").centered())
-            .borders(Borders::ALL)
-            .border_set(border::ROUNDED)
-            .add_modifier(match self.focused_window {
-                FocusedWindow::PathList => Modifier::HIDDEN,
-                FocusedWindow::DiffPreview => Modifier::BOLD,
-            })
-            .padding(Padding::horizontal(1));
+        let colored_diff = {
+            let lines: Vec<Line<'_>> = diff_str
+                .lines()
+                .map(|line| {
+                    let style = match line.chars().next() {
+                        Some('+') => Style::default().fg(Color::Green),
+                        Some('-') => Style::default().fg(Color::Red),
+                        Some('@') => Style::default().add_modifier(Modifier::ITALIC),
+                        Some('d') if line.starts_with("diff --git") => {
+                            Style::default().add_modifier(Modifier::BOLD)
+                        }
+                        Some('i') if line.starts_with("index") => {
+                            Style::default().add_modifier(Modifier::BOLD)
+                        }
+                        _ => Style::default(),
+                    };
 
-        Paragraph::new(info)
-            .block(block)
+                    Line::from(Span::styled(line.to_string(), style))
+                })
+                .collect();
+
+            Text::from(lines)
+        };
+
+        Paragraph::new(colored_diff)
+            .block(
+                Block::new()
+                    .title(Line::raw(" Diff Preview ").centered().add_modifier(
+                        match self.focused_window {
+                            FocusedWindow::PathList => Modifier::HIDDEN,
+                            FocusedWindow::DiffPreview => Modifier::BOLD,
+                        },
+                    ))
+                    .borders(Borders::ALL)
+                    .border_set(border::ROUNDED)
+                    .padding(Padding::horizontal(1)),
+            )
             .scroll((self.diff_scroll, 0))
             .wrap(Wrap { trim: false })
             .render(area, frame.buffer_mut());

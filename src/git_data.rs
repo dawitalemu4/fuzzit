@@ -5,7 +5,10 @@ use std::{
 };
 
 use color_eyre::eyre::{Result, eyre};
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use rayon::{
+    iter::{IntoParallelRefIterator, ParallelBridge, ParallelIterator},
+    slice::ParallelSliceMut,
+};
 
 #[derive(Debug)]
 pub struct GitData {
@@ -21,7 +24,7 @@ enum GitCmd {
 fn execute_git_command(r#type: GitCmd, repo_path: &PathBuf) -> Result<String> {
     let subcommand = match r#type {
         GitCmd::Status => vec!["status"],
-        GitCmd::Diff => vec!["diff", "HEAD"], // Get diff no matter the status
+        GitCmd::Diff => vec!["diff", "HEAD"], // figure out how to get diff from commits
     };
 
     let output = Command::new("git")
@@ -54,23 +57,54 @@ pub fn collect_git_data(
         ))?
     };
 
-    recursive_repo_search(&base_path, tx)?;
+    let parsed_base_path = if base_path.starts_with("~") {
+        if let Some(mut home) = dirs::home_dir() {
+            let mut components = base_path.components();
+            components.next(); // Skip the tilde component to use home dir instead
 
+            home.extend(components);
+            home
+        } else {
+            Err(eyre!(
+                "Home directory could not be determined, please use full path for FUZZIT_BASE_PATH or FUZZIT_PATH"
+            ))?
+        }
+    } else {
+        base_path.clone()
+    };
+
+    recursive_repo_search(&parsed_base_path, tx)?;
     while let Ok(repo_path) = rx.recv() {
         repo_paths.push(repo_path)
     }
 
-    // Iteratite through collected repos with parallelism
+    // Parallel sort repo paths a-z (unstable is faster)
+    repo_paths.par_sort_unstable();
+
+    // Parallel iterate through collected repos
     let git_data = repo_paths
         .par_iter()
         .map(|repo_path| {
+            let stripped_repo_path = {
+                let removed_base_path = repo_path
+                    .display()
+                    .to_string()
+                    .replace(&parsed_base_path.display().to_string(), "");
+
+                if cfg!(windows) {
+                    removed_base_path.replacen(r#"\"#, "", 1)
+                } else {
+                    removed_base_path.replacen("/", "", 1)
+                }
+            };
+
             // Concurrently get git data
             let (status, diff) = rayon::join(
                 || execute_git_command(GitCmd::Status, repo_path).unwrap_or_default(),
                 || execute_git_command(GitCmd::Diff, repo_path).unwrap_or_default(),
             );
 
-            (repo_path.display().to_string(), GitData { status, diff })
+            (stripped_repo_path, GitData { status, diff })
         })
         .collect();
 
@@ -88,29 +122,31 @@ fn recursive_repo_search(current_path: &PathBuf, repo_path_sender: Sender<PathBu
     }
 
     let subfolders = std::fs::read_dir(current_path)?;
-    for subfolder in subfolders {
-        let subfolder_path = subfolder?.path();
+    subfolders
+        .par_bridge() // Parallel iterate through subfolders
+        .map(|subfolder_res| {
+            if let Ok(subfolder) = subfolder_res {
+                let subfolder_path = subfolder.path();
 
-        if subfolder_path.is_dir()
-            && let Some(subfolder_name) = subfolder_path.file_name()
-        {
-            let subfolder_name_str = subfolder_name.to_str().unwrap_or_default();
+                if subfolder_path.is_dir()
+                    && let Some(subfolder_name) = subfolder_path.file_name()
+                {
+                    let subfolder_name_str = subfolder_name.to_str().unwrap_or_default();
 
-            // Skip hidden directories except .git and common build/dependency directories
-            if !(subfolder_name_str.starts_with('.') && subfolder_name_str != ".git")
-                || !(subfolder_name_str == "node_modules"
-                    || subfolder_name_str == "target"
-                    || subfolder_name_str == "dist"
-                    || subfolder_name_str == "build")
-            {
-                // Only reason I don't want to use parallelism/concurrency here is to maintain a
-                // natural/consistent a-z name sorting coming from .read_dir() without having to
-                // spend resources to actually sort after collecting (barely decreases time for my
-                // use case anyways)
-                recursive_repo_search(&subfolder_path, repo_path_sender.clone())?;
+                    // Skip hidden directories except .git and common build/dependency directories
+                    if !(subfolder_name_str.starts_with('.') && subfolder_name_str != ".git")
+                        || !(subfolder_name_str == "node_modules"
+                            || subfolder_name_str == "target"
+                            || subfolder_name_str == "dist"
+                            || subfolder_name_str == "build")
+                    {
+                        recursive_repo_search(&subfolder_path, repo_path_sender.clone())
+                            .unwrap_or_default();
+                    }
+                }
             }
-        }
-    }
+        })
+        .collect::<Vec<_>>();
 
     Ok(())
 }
