@@ -40,7 +40,7 @@ fn execute_git_command(r#type: GitCmd, repo_path: &PathBuf) -> Result<String> {
 pub fn collect_git_data(
     fuzzit_path: Option<PathBuf>,
     fuzzit_base_path: Option<PathBuf>,
-) -> Result<(PathBuf, Vec<(String, GitData)>)> {
+) -> Result<(String, Vec<(String, GitData)>)> {
     let mut repo_paths = Vec::new();
     let (tx, rx) = mpsc::channel();
 
@@ -74,7 +74,7 @@ pub fn collect_git_data(
         })
         .collect();
 
-    Ok((base_path, git_data))
+    Ok((base_path.display().to_string(), git_data))
 }
 
 fn recursive_repo_search(current_path: &PathBuf, repo_path_sender: Sender<PathBuf>) -> Result<()> {

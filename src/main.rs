@@ -38,13 +38,12 @@ fn main() -> Result<()> {
 
     if args.status {
         status::display(base_path, args.disable_ascii, git_data)?;
+    } else {
+        let mut terminal = ratatui::init();
+        let res = diff::App::new(base_path, git_data).run(&mut terminal);
+        ratatui::restore();
+        res?
     }
-    // } else {
-    //     let mut terminal = ratatui::init();
-    //     let res = diff::app::new(base_path, git_data).run(&mut terminal);
-    //     ratatui::restore();
-    //     res?
-    // }
 
     Ok(())
 }
