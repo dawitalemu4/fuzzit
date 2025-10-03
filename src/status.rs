@@ -1,11 +1,9 @@
-use std::path::PathBuf;
-
 use color_eyre::{eyre::Result, owo_colors::OwoColorize};
 
 use crate::git_data::GitData;
 
 pub fn display(
-    base_path: PathBuf,
+    base_path: String,
     disable_ascii_art: bool,
     git_data: Vec<(String, GitData)>,
 ) -> Result<()> {
@@ -32,7 +30,7 @@ pub fn display(
         return Ok(());
     }
 
-    println!("Iterating git repos from {}\n", base_path.display());
+    println!("Iterating git repos from {base_path}\n");
     for (repo_path, git_data) in git_data {
         if git_data.status.contains("nothing to commit") {
             println!("{repo_path} .. {}", "CLEAN".green().italic());

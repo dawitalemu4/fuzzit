@@ -5,7 +5,7 @@ Fuzzy nested git repo finder with status and diff previews
 
 ## Usage
 
-Rich diff previews and status list:
+Rich diff previews and status listed in TUI:
 ```sh
 fuzzit
 ```
