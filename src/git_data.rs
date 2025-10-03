@@ -20,15 +20,15 @@ enum GitCmd {
 
 fn execute_git_command(r#type: GitCmd, repo_path: &PathBuf) -> Result<String> {
     let subcommand = match r#type {
-        GitCmd::Status => "status",
-        GitCmd::Diff => "diff",
+        GitCmd::Status => vec!["status"],
+        GitCmd::Diff => vec!["diff", "HEAD"], // Get diff no matter the status
     };
 
     let output = Command::new("git")
-        .arg(subcommand)
+        .args(&subcommand)
         .current_dir(repo_path)
         .output()
-        .map_err(|e| eyre!(format!("git {subcommand} could not be executed: {e:#?}")))?;
+        .map_err(|e| eyre!(format!("git {subcommand:#?} could not be executed: {e:#?}")))?;
 
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())

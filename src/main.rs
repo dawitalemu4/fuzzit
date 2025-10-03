@@ -42,6 +42,7 @@ fn main() -> Result<()> {
         let mut terminal = ratatui::init();
         let res = diff::App::new(base_path, git_data).run(&mut terminal);
         ratatui::restore();
+
         res?
     }
 

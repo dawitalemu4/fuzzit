@@ -34,20 +34,22 @@ pub fn display(
     for (repo_path, git_data) in git_data {
         if git_data.status.contains("nothing to commit") {
             println!("{repo_path} .. {}", "CLEAN".green().italic());
+        } else if git_data.status.contains("Your branch is ahead of")
+            || git_data.status.contains("diverged")
+        {
+            println!(
+                "{repo_path} .. {}",
+                "DIRTY (changes committed, not pushed)".red().bold()
+            );
         } else if git_data.status.contains("no changes added to commit") {
             println!(
-                "{repo_path} .. {} (changes not added)",
-                "DIRTY".fg_rgb::<255, 184, 108>() // orange
+                "{repo_path} .. {}",
+                "DIRTY (changes not added)".fg_rgb::<255, 184, 108>() // orange
             );
         } else if git_data.status.contains("Changes to be committed") {
             println!(
-                "{repo_path} .. {} (changes added, not committed)",
-                "DIRTY".red()
-            );
-        } else if git_data.status.contains("Your branch is ahead of") {
-            println!(
-                "{repo_path} .. {} (changes committed, not pushed)",
-                "DIRTY".red().bold()
+                "{repo_path} .. {}",
+                "DIRTY (changes added, not committed)".red()
             );
         } else {
             println!("{repo_path} .. {}", "UNKNOWN".yellow());

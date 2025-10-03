@@ -3,36 +3,36 @@
 use color_eyre::eyre::Result;
 use ratatui::{
     DefaultTerminal, Frame,
-    crossterm::event::{self, Event, KeyCode},
-    layout::{Constraint, Layout, Margin, Rect},
-    style::{Color, Modifier, Style},
-    text::{Span, Text},
+    crossterm::event::{self, Event, KeyCode, KeyEventKind},
+    layout::{Constraint, Layout, Rect},
+    style::{Color, Modifier, Style, Stylize},
+    symbols::border,
+    text::{Line, Span, Text},
     widgets::{
-        Block, BorderType, HighlightSpacing, List, ListItem, ListState, Paragraph, Scrollbar,
-        ScrollbarOrientation, ScrollbarState, StatefulWidget,
+        Block, BorderType, Borders, HighlightSpacing, List, ListItem, ListState, Padding,
+        Paragraph, StatefulWidget, Widget, Wrap,
     },
 };
 
 use crate::git_data::GitData;
 
-const ITEM_HEIGHT: usize = 4;
-const INFO_TEXT: [&str; 2] = [
-    "(↑/k) move up | (↓/j) move down | g/G to go top/bottom | (Enter) view diff",
-    "(Esc/q) quit",
+const KEYBINDS: [&str; 2] = [
+    "(↑/k) move up | (↓/j) move down | (←/h) move left | (→/l) move right",
+    "g/G to go top/bottom | (Esc/q) quit",
 ];
 
-const HEADER_STYLE: Style = Style::new().fg(Color::Black).bg(Color::DarkGray);
-const FOOTER_STYLE: Style = Style::new().fg(Color::Black).bg(Color::DarkGray);
-const ROW_STYLE: Style = Style::new().fg(Color::DarkGray).bg(Color::Black);
-const SELECTED_ROW_STYLE: Style = Style::new()
-    .fg(Color::Black)
-    .bg(Color::DarkGray)
-    .add_modifier(Modifier::BOLD);
+#[derive(Debug, PartialEq)]
+enum FocusedWindow {
+    PathList,
+    DiffPreview,
+}
 
 #[derive(Debug)]
 pub struct App {
     state: ListState,
-    scroll_state: ScrollbarState,
+    diff_scroll: u16,
+    max_diff_scroll: u16,
+    focused_window: FocusedWindow,
     base_path: String,
     items: Vec<(String, GitData)>,
 }
@@ -41,39 +41,86 @@ impl App {
     pub fn new(base_path: String, git_data: Vec<(String, GitData)>) -> Self {
         Self {
             state: ListState::default().with_selected(Some(0)),
-            scroll_state: ScrollbarState::new((git_data.len() - 1) * ITEM_HEIGHT),
+            diff_scroll: 0,
+            max_diff_scroll: 0,
+            focused_window: FocusedWindow::PathList,
             base_path,
             items: git_data,
         }
     }
 
     fn select_next(&mut self) {
-        self.state.select_next();
+        match self.focused_window {
+            FocusedWindow::PathList => {
+                self.state.select_next();
+                self.diff_scroll = 0; // Reset diff scroll when changing selection
+            }
+            FocusedWindow::DiffPreview => {
+                self.diff_scroll = self.diff_scroll.saturating_add(1);
+            }
+        }
     }
 
     fn select_previous(&mut self) {
-        self.state.select_previous();
+        match self.focused_window {
+            FocusedWindow::PathList => {
+                self.state.select_previous();
+                self.diff_scroll = 0;
+            }
+            FocusedWindow::DiffPreview => {
+                self.diff_scroll = self.diff_scroll.saturating_sub(1);
+            }
+        }
     }
 
     fn select_first(&mut self) {
-        self.state.select_first();
+        match self.focused_window {
+            FocusedWindow::PathList => {
+                self.state.select_first();
+                self.diff_scroll = 0;
+            }
+            FocusedWindow::DiffPreview => {
+                self.diff_scroll = 0;
+            }
+        }
     }
 
     fn select_last(&mut self) {
-        self.state.select_last();
+        match self.focused_window {
+            FocusedWindow::PathList => {
+                self.state.select_last();
+                self.diff_scroll = 0;
+            }
+            FocusedWindow::DiffPreview => {
+                self.diff_scroll = self.max_diff_scroll;
+            }
+        }
+    }
+
+    fn hover_path_list(&mut self) {
+        self.focused_window = FocusedWindow::PathList;
+    }
+
+    fn hover_diff_preview(&mut self) {
+        self.focused_window = FocusedWindow::DiffPreview;
     }
 
     pub fn run(mut self, terminal: &mut DefaultTerminal) -> Result<()> {
         loop {
             terminal.draw(|frame| self.render(frame))?;
 
-            if let Event::Key(event) = event::read()? {
+            if let Event::Key(event) = event::read()?
+                && let KeyEventKind::Press = event.kind
+            {
+                // Skip to line number with :?
                 match event.code {
                     KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
                     KeyCode::Char('j') | KeyCode::Down => self.select_next(),
                     KeyCode::Char('k') | KeyCode::Up => self.select_previous(),
-                    KeyCode::Char('g') | KeyCode::Home => self.select_first(),
-                    KeyCode::Char('G') | KeyCode::End => self.select_last(),
+                    KeyCode::Char('h') | KeyCode::Left => self.hover_path_list(),
+                    KeyCode::Char('l') | KeyCode::Right => self.hover_diff_preview(),
+                    KeyCode::Char('g') | KeyCode::PageUp => self.select_first(),
+                    KeyCode::Char('G') | KeyCode::PageDown => self.select_last(),
                     _ => {}
                 }
             }
@@ -89,29 +136,23 @@ impl App {
         ])
         .split(rect);
 
-        let diff_window = Layout::horizontal([Constraint::Fill(1)]).split(layout[1]);
-        let diff_window_inner = Layout::vertical([
-            Constraint::Length(3), // Diff window header
-            Constraint::Fill(1),   // Diff content
+        let list_layout = Layout::horizontal([
+            Constraint::Percentage(50), // Path list
+            Constraint::Percentage(50), // Diff preview
         ])
-        .split(diff_window[0]);
+        .split(layout[1]);
 
         self.render_header(frame, layout[0]);
-        self.render_list(frame, layout[1]);
-        // self.render_diff_window(frame, diff_window_inner, buffer);
-        self.render_scrollbar(frame, layout[1]);
+        self.render_list(frame, list_layout[0]);
+        self.render_diff_window(frame, list_layout[1]);
         self.render_footer(frame, layout[2]);
     }
 
     fn render_header(&mut self, frame: &mut Frame<'_>, area: Rect) {
         let header = Paragraph::new(format!("Viewing git repos in {}", self.base_path))
-            .style(HEADER_STYLE)
             .centered()
-            .block(
-                Block::bordered()
-                    .border_type(BorderType::Rounded)
-                    .border_style(Style::new().fg(Color::Gray)),
-            );
+            .block(Block::bordered().border_type(BorderType::Rounded))
+            .wrap(Wrap { trim: false });
 
         frame.render_widget(header, area);
     }
@@ -121,29 +162,40 @@ impl App {
             .items
             .iter()
             .map(|(repo_path, git_data)| {
-                let mut text = Text::raw(repo_path);
+                let stripped_repo_path = {
+                    let removed_base_path = repo_path.replace(&self.base_path, "");
+                    if cfg!(windows) {
+                        removed_base_path.replacen(r#"\"#, "", 1)
+                    } else {
+                        removed_base_path.replacen("/", "", 1)
+                    }
+                };
+
+                let mut text = Text::raw(format!("{stripped_repo_path} .. "));
                 if git_data.status.contains("nothing to commit") {
                     text.push_span(Span::styled(
-                        " .. CLEAN",
+                        "CLEAN",
                         Style::new().fg(Color::Green).add_modifier(Modifier::ITALIC),
+                    ))
+                } else if git_data.status.contains("Your branch is ahead of")
+                    || git_data.status.contains("diverged")
+                {
+                    text.push_span(Span::styled(
+                            "DIRTY (changes committed, not pushed)",
+                            Style::new().fg(Color::Red).add_modifier(Modifier::BOLD),
                     ))
                 } else if git_data.status.contains("no changes added to commit") {
                     text.push_span(Span::styled(
-                        " .. DIRTY (changes not added)",
+                        "DIRTY (changes not added)",
                         Style::new().fg(Color::Rgb(255, 184, 108)), // orange
                     ))
                 } else if git_data.status.contains("Changes to be committed") {
                     text.push_span(Span::styled(
-                        " .. DIRTY (changes added, not committed)",
+                        "DIRTY (changes added, not committed)",
                         Style::new().fg(Color::Red),
                     ))
-                } else if git_data.status.contains("Your branch is ahead of") {
-                    text.push_span(Span::styled(
-                        " .. DIRTY (changes committed, not pushed)",
-                        Style::new().fg(Color::Red).add_modifier(Modifier::BOLD),
-                    ))
                 } else {
-                    text.push_span(Span::styled(" .. UNKNOWN", Style::new().fg(Color::Yellow)))
+                    text.push_span(Span::styled("UNKNOWN", Style::new().fg(Color::Yellow)))
                 };
 
                 ListItem::new(text)
@@ -151,66 +203,46 @@ impl App {
             .collect::<Vec<_>>();
 
         let list = List::new(list_items)
-            .style(ROW_STYLE)
-            .highlight_style(SELECTED_ROW_STYLE)
-            .highlight_symbol(">")
+            .highlight_style(match self.focused_window {
+                FocusedWindow::PathList => Style::new().add_modifier(Modifier::DIM),
+                FocusedWindow::DiffPreview => Style::new(),
+            })
+            .highlight_symbol("> ")
             .highlight_spacing(HighlightSpacing::Always);
 
         StatefulWidget::render(list, area, frame.buffer_mut(), &mut self.state);
     }
 
-    // fn render_diff_window(&mut self, frame: &mut Frame<'_>, area: Rect) {
-    //     // We get the info depending on the item's state.
-    //     let info = if let Some(i) = self.todo_list.state.selected() {
-    //         match self.todo_list.items[i].status {
-    //             Status::Completed => format!("✓ DONE: {}", self.todo_list.items[i].info),
-    //             Status::Todo => format!("☐ TODO: {}", self.todo_list.items[i].info),
-    //         }
-    //     } else {
-    //         "Nothing selected...".to_string()
-    //     };
+    fn render_diff_window(&mut self, frame: &mut Frame<'_>, area: Rect) {
+        let info = if let Some(i) = self.state.selected() {
+            self.max_diff_scroll = self.items[i].1.diff.lines().count() as u16;
+            &self.items[i].1.diff
+        } else {
+            "Nothing selected..."
+        };
 
-    //     // We show the list item's info under the list in this paragraph
-    //     let block = Block::new()
-    //         .title(Line::raw("TODO Info").centered())
-    //         .borders(Borders::TOP)
-    //         .border_set(symbols::border::EMPTY)
-    //         .border_style(TODO_HEADER_STYLE)
-    //         .bg(NORMAL_ROW_BG)
-    //         .padding(Padding::horizontal(1));
+        let block = Block::new()
+            .title(Line::raw(" Diff Preview ").centered())
+            .borders(Borders::ALL)
+            .border_set(border::ROUNDED)
+            .add_modifier(match self.focused_window {
+                FocusedWindow::PathList => Modifier::HIDDEN,
+                FocusedWindow::DiffPreview => Modifier::BOLD,
+            })
+            .padding(Padding::horizontal(1));
 
-    //     // We can now render the item info
-    //     Paragraph::new(info)
-    //         .block(block)
-    //         .fg(TEXT_FG_COLOR)
-    //         .wrap(Wrap { trim: false })
-    //         .render(area, frame.buffer_mut());
-    // }
-
-    fn render_scrollbar(&mut self, frame: &mut Frame<'_>, area: Rect) {
-        frame.render_stateful_widget(
-            Scrollbar::default()
-                .orientation(ScrollbarOrientation::VerticalRight)
-                .begin_symbol(None)
-                .end_symbol(None),
-            area.inner(Margin {
-                vertical: 1,
-                horizontal: 1,
-            }),
-            &mut self.scroll_state,
-        );
+        Paragraph::new(info)
+            .block(block)
+            .scroll((self.diff_scroll, 0))
+            .wrap(Wrap { trim: false })
+            .render(area, frame.buffer_mut());
     }
 
     fn render_footer(&mut self, frame: &mut Frame<'_>, area: Rect) {
-        let info_footer = Paragraph::new(Text::from_iter(INFO_TEXT))
-            .style(FOOTER_STYLE)
+        let footer = Paragraph::new(Text::from_iter(KEYBINDS))
             .centered()
-            .block(
-                Block::bordered()
-                    .border_type(BorderType::Double)
-                    .border_style(Style::new().fg(Color::Gray)),
-            );
+            .block(Block::bordered().border_type(BorderType::Rounded));
 
-        frame.render_widget(info_footer, area);
+        frame.render_widget(footer, area);
     }
 }
