@@ -18,7 +18,7 @@ use crate::git_data::GitData;
 
 const KEYBINDS: [&str; 2] = [
     "(↑/k) move up | (↓/j) move down | (←/h) move left | (→/l) move right",
-    "g/G to go top/bottom | (Esc/q) quit",
+    "(g/G) to go top/bottom | (Esc/q) quit",
 ];
 
 #[derive(Debug)]
@@ -112,7 +112,6 @@ impl App {
             if let Event::Key(event) = event::read()?
                 && let KeyEventKind::Press = event.kind
             {
-                // Skip to line number with :?
                 match event.code {
                     KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
                     KeyCode::Char('j') | KeyCode::Down => self.select_next(),
@@ -170,7 +169,9 @@ impl App {
                         "CLEAN",
                         Style::new().fg(Color::Green).add_modifier(Modifier::ITALIC),
                     ))
-                } else if git_data.status.contains("no changes added to commit") {
+                } else if git_data.status.contains("no changes added to commit")
+                    || git_data.status.contains("untracked")
+                {
                     text.push_span(Span::styled(
                         "DIRTY (changes not added)",
                         Style::new().fg(Color::Rgb(255, 184, 108)), // orange
@@ -185,7 +186,7 @@ impl App {
                 {
                     text.push_span(Span::styled(
                         "DIRTY (changes committed, not pushed)",
-                        Style::new().fg(Color::Red).add_modifier(Modifier::BOLD),
+                        Style::new().fg(Color::LightRed).bold(),
                     ))
                 } else {
                     text.push_span(Span::styled("UNKNOWN", Style::new().fg(Color::Yellow)))
