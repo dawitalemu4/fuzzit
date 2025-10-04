@@ -36,7 +36,9 @@ pub fn display(
             && !git_data.status.contains("branch is ahead")
         {
             println!("{repo_path} .. {}", "CLEAN".green().italic());
-        } else if git_data.status.contains("no changes added to commit") {
+        } else if git_data.status.contains("no changes added to commit")
+            || git_data.status.contains("untracked")
+        {
             println!(
                 "{repo_path} .. {}",
                 "DIRTY (changes not added)".fg_rgb::<255, 184, 108>() // orange
