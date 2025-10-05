@@ -10,6 +10,8 @@ use rayon::{
     slice::ParallelSliceMut,
 };
 
+use crate::cache::{create_cache, mtime_matches_cache};
+
 #[derive(Debug)]
 pub struct GitData {
     pub status: String,
@@ -39,6 +41,7 @@ fn execute_git_command(r#type: GitCmd, repo_path: &PathBuf) -> Result<String> {
 pub fn collect_git_data(
     fuzzit_path: Option<PathBuf>,
     fuzzit_base_path: Option<PathBuf>,
+    refresh_cache: bool,
 ) -> Result<(String, Vec<(String, GitData)>)> {
     let mut repo_paths = Vec::new();
     let (tx, rx) = mpsc::channel();
@@ -69,13 +72,19 @@ pub fn collect_git_data(
         base_path.clone()
     };
 
-    recursive_repo_search(&parsed_base_path, tx)?;
-    while let Ok(repo_path) = rx.recv() {
-        repo_paths.push(repo_path)
-    }
+    if !refresh_cache && let Some(cached_repo_paths) = mtime_matches_cache(&parsed_base_path) {
+        repo_paths.extend(cached_repo_paths);
+    } else {
+        recursive_repo_search(&parsed_base_path, tx)?;
+        while let Ok(repo_path) = rx.recv() {
+            repo_paths.push(repo_path)
+        }
 
-    // Parallel sort repo paths a-z (unstable is faster)
-    repo_paths.par_sort_unstable();
+        // Parallel sort repo paths a-z (unstable is faster)
+        repo_paths.par_sort_unstable();
+
+        create_cache(&parsed_base_path, &repo_paths);
+    }
 
     // Parallel iterate through collected repos
     let git_data = repo_paths
@@ -88,7 +97,7 @@ pub fn collect_git_data(
                     .replace(&parsed_base_path.display().to_string(), "");
 
                 if cfg!(windows) {
-                    removed_base_path.replacen(r#"\"#, "", 1)
+                    removed_base_path.replacen("\\", "", 1)
                 } else {
                     removed_base_path.replacen("/", "", 1)
                 }
