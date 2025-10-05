@@ -35,6 +35,23 @@ fn execute_git_command(r#type: GitCmd, repo_path: &PathBuf) -> Result<String> {
         .output()
         .map_err(|e| eyre!(format!("git {subcommand:#?} could not be executed: {e:#?}")))?;
 
+    if !output.status.success()
+        && let error_message = String::from_utf8_lossy(&output.stderr)
+        && error_message.contains("no upstream configured")
+    {
+        let output = Command::new("git")
+            .args(["diff", "origin/HEAD"]) // Fallback to origin/HEAD if no upstream exists
+            .current_dir(repo_path)
+            .output()
+            .map_err(|e| {
+                eyre!(format!(
+                    "git status origin/HEAD could not be executed: {e:#?}"
+                ))
+            })?;
+
+        return Ok(String::from_utf8_lossy(&output.stdout).to_string());
+    }
+
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 

@@ -35,7 +35,15 @@ pub fn display(
         if git_data.status.contains("nothing to commit")
             && !git_data.status.contains("branch is ahead")
         {
-            println!("{repo_path} .. {}", "CLEAN".green().italic());
+            if git_data.diff.is_empty() {
+                println!("{repo_path} .. {}", "CLEAN".green().italic());
+            } else {
+                // edge case: no upstream branch, but there are local commits not pushed
+                println!(
+                    "{repo_path} .. {}",
+                    "DIRTY (changes committed, not pushed)".red().bold()
+                );
+            }
         } else if git_data.status.contains("no changes added to commit")
             || git_data.status.contains("untracked")
         {

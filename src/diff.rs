@@ -165,10 +165,18 @@ impl App {
                 if git_data.status.contains("nothing to commit")
                     && !git_data.status.contains("branch is ahead")
                 {
-                    text.push_span(Span::styled(
-                        "CLEAN",
-                        Style::new().fg(Color::Green).add_modifier(Modifier::ITALIC),
-                    ))
+                    if git_data.diff.is_empty() {
+                        text.push_span(Span::styled(
+                            "CLEAN",
+                            Style::new().fg(Color::Green).add_modifier(Modifier::ITALIC),
+                        ))
+                    } else {
+                        // edge case: no upstream branch, but there are local commits not pushed
+                        text.push_span(Span::styled(
+                            "DIRTY (changes committed, not pushed)",
+                            Style::new().fg(Color::LightRed).bold(),
+                        ))
+                    }
                 } else if git_data.status.contains("no changes added to commit")
                     || git_data.status.contains("untracked")
                 {
