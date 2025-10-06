@@ -36,7 +36,13 @@ FUZZIT_PATH="~/dev/folder-with-many-projects" fuzzit
 cargo install fuzzit
 ```
 
-Add your dev folder as `FUZZIT_BASE_PATH` to your environment (ex: `export FUZZIT_BASE_PATH="~/dev"` in ~/.zshrc)
+or 
+
+```sh
+curl -L https://github.com/dawitalemu4/fuzzit/releases/download/v1.0.2/fuzzit_1.0.2_windows_x86_64.zip
+```
+
+> Add your dev folder as `FUZZIT_BASE_PATH` to your environment (ex: `export FUZZIT_BASE_PATH="~/dev"` in ~/.zshrc)
 
 
 ## License
