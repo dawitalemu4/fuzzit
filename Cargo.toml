@@ -1,6 +1,6 @@
 [package]
 name = "fuzzit"
-version = "1.0.0"
+version = "1.0.2"
 edition = "2024"
 description = "Fuzzy nested git repo finder with status and diff previews"
 homepage = "https://github.com/dawitalemu4/fuzzit"
@@ -8,7 +8,7 @@ repository = "https://github.com/dawitalemu4/fuzzit"
 readme = "README.md"
 license-file = "LICENSE.txt"
 keywords = ["fuzzy", "git"]
-categories = ["Virtualization"]
+categories = ["visualization"]
 include = ["**/*.rs"]
 
 [lints.rust]

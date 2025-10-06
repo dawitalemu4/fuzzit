@@ -10,7 +10,7 @@ Rich diff previews and status listed in TUI:
 fuzzit
 ```
 
-![20251004-0606-05 8649260](https://github.com/user-attachments/assets/993b2261-e95b-43b2-aa7f-13113e9d27b3)
+![fuzzit](https://raw.githubusercontent.com/dawitalemu4/fuzzit/main/assets/tui.gif)
 
 -----
 
@@ -19,7 +19,7 @@ Simple list of one-line status summaries:
 fuzzit --status
 ```
 
-<img width="1365" height="922" alt="image" src="https://github.com/user-attachments/assets/a3d4b2d5-1132-40d1-9e93-f1feca4b0ae7" />
+![fuzzit --status](https://raw.githubusercontent.com/dawitalemu4/fuzzit/main/assets/status.png)
 
 -----
 
