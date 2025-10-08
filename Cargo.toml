@@ -1,6 +1,6 @@
 [package]
 name = "fuzzit"
-version = "1.0.2"
+version = "1.0.3"
 edition = "2024"
 description = "Fuzzy nested git repo finder with status and diff previews"
 homepage = "https://github.com/dawitalemu4/fuzzit"
