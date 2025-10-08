@@ -39,10 +39,16 @@ cargo install fuzzit
 or 
 
 ```sh
-curl -L https://github.com/dawitalemu4/fuzzit/releases/download/v1.0.2/fuzzit_1.0.2_windows_x86_64.zip
+curl -L https://github.com/dawitalemu4/fuzzit/releases/download/1.0.3/fuzzit_1.0.3_windows_x86_64.zip
 ```
 
 > Add your dev folder as `FUZZIT_BASE_PATH` to your environment (ex: `export FUZZIT_BASE_PATH="~/dev"` in ~/.zshrc)
+
+> To avoid false positives on mac, run the following commands:
+> ```sh
+> echo .DS_Store >> ~/.gitignore_global
+> git config --global core.excludesfile ~/.gitignore_global
+> ```
 
 
 ## License
